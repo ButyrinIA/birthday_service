@@ -1,0 +1,15 @@
+version: "3.3"
+
+networks:
+  net:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: birthday_service
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+    ports:
+      - "5432:5432"
