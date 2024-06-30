@@ -1,32 +1,113 @@
 package repository
 
 import (
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"rutube/internal/repository"
-	"testing"
+	"rutube/internal/models"
 )
 
-func TestGetAllUsers(t *testing.T) {
+func TestUserRepository_GetAllUsers(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
+	assert.NoError(t, err)
 	defer db.Close()
 
 	rows := sqlmock.NewRows([]string{"id", "username", "email", "birthday", "is_subscribed"}).
-		AddRow(1, "user1", "user1@example.com", "2024-06-19", true).
-		AddRow(2, "user2", "user2@example.com", "2024-06-19", false)
+		AddRow(1, "user1", "user1@example.com", "2000-01-01", true).
+		AddRow(2, "user2", "user2@example.com", "2000-02-02", false)
 
-	mock.ExpectQuery("SELECT id, username, email, birthday, is_subscribed FROM users").WillReturnRows(rows)
+	mock.ExpectQuery("SELECT id, username, email, birthday, is_subscribed FROM users").
+		WillReturnRows(rows)
 
-	userRepo := repository.NewUserRepository(db)
-	users, err := userRepo.GetAllUsers()
+	repo := NewUserRepository(db)
+	users, err := repo.GetAllUsers()
 
 	assert.NoError(t, err)
 	assert.Len(t, users, 2)
-	assert.Equal(t, users[0].Username, "user1")
-	assert.Equal(t, users[1].Username, "user2")
+	assert.Equal(t, "user1", users[0].Username)
+	assert.Equal(t, "user2", users[1].Username)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// Additional tests for other methods can be added here
+func TestUserRepository_CreateUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	user := models.User{
+		Username:     "user1",
+		Password:     "password",
+		Email:        "user1@example.com",
+		Birthday:     "2000-01-01",
+		IsSubscribed: true,
+	}
+
+	mock.ExpectExec("INSERT INTO users").
+		WithArgs(user.Username, user.Password, user.Email, user.Birthday, user.IsSubscribed).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	repo := NewUserRepository(db)
+	err = repo.CreateUser(user)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_Subscribe(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	userID := 1
+
+	mock.ExpectExec("UPDATE users SET is_subscribed = true WHERE id = \\$1").
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	repo := NewUserRepository(db)
+	err = repo.Subscribe(userID)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_Unsubscribe(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	userID := 1
+
+	mock.ExpectExec("UPDATE users SET is_subscribed = false WHERE id = \\$1").
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	repo := NewUserRepository(db)
+	err = repo.Unsubscribe(userID)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_GetUserByUsername(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	username := "user1"
+	row := sqlmock.NewRows([]string{"id", "username", "password", "email", "birthday", "is_subscribed"}).
+		AddRow(1, "user1", "password", "user1@example.com", "2000-01-01", true)
+
+	mock.ExpectQuery("SELECT id, username, password, email, birthday, is_subscribed FROM users WHERE username = \\$1").
+		WithArgs(username).
+		WillReturnRows(row)
+
+	repo := NewUserRepository(db)
+	user, err := repo.GetUserByUsername(username)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Equal(t, "user1", user.Username)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

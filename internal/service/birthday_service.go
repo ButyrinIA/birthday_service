@@ -24,7 +24,7 @@ func (s *BirthdayService) GetTodaysBirthdays() ([]models.User, error) {
 	var todaysBirthdays []models.User
 	today := time.Now()
 	for _, user := range users {
-		// Check if Birthday is not an empty string and parse it to time.Time
+		// Проверяет, не является ли Birthday пустой строкой, и преобразуйте ее в time.Time
 		if user.Birthday != "" {
 			birthday, err := time.Parse("2006-01-02T15:04:05Z", user.Birthday)
 			if err != nil {
